@@ -3,14 +3,40 @@
 # SPDX-License-Identifier: MIT
 
 import os
+import shutil
 import subprocess
 import sys
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
-from tests.utils import SKIP_UNLESS_POSIX_PERMISSIONS, assert_file_exist, run_build
+import pytest
 
-pytestmark = SKIP_UNLESS_POSIX_PERMISSIONS
+import mkslides
+from tests.utils import assert_file_exist, read_only, run_build
+
+pytestmark = [
+    pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Relies on POSIX permission bits.",
+    ),
+    pytest.mark.skipif(
+        hasattr(os, "geteuid") and os.geteuid() == 0,
+        reason="Root bypasses permission checks.",
+    ),
+]
+
+PACKAGE_ROOT = Path(mkslides.__file__).parent
+
+
+@pytest.fixture(scope="module")
+def read_only_install(tmp_path_factory: pytest.TempPathFactory) -> Generator[Path]:
+    """Simulate a read-only install, like the one in the Nix store."""
+    prefix = tmp_path_factory.mktemp("site-packages")
+    shutil.copytree(PACKAGE_ROOT, prefix / PACKAGE_ROOT.name)
+
+    with read_only(prefix) as read_only_prefix:
+        yield read_only_prefix
 
 
 def test_read_only_copy_is_imported(read_only_install: Path) -> None:
