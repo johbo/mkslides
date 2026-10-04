@@ -2,16 +2,27 @@
 #
 # SPDX-License-Identifier: MIT
 
+import os
 import shutil
+import sys
 from collections.abc import Generator
 from pathlib import Path
 
 import pytest
 
 from mkslides.utils import ensure_writable
-from tests.utils import SKIP_UNLESS_POSIX_PERMISSIONS, read_only
+from tests.utils import read_only
 
-pytestmark = SKIP_UNLESS_POSIX_PERMISSIONS
+pytestmark = [
+    pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Relies on POSIX permission bits.",
+    ),
+    pytest.mark.skipif(
+        hasattr(os, "geteuid") and os.geteuid() == 0,
+        reason="Root bypasses permission checks.",
+    ),
+]
 
 
 @pytest.fixture
